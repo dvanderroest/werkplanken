@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, switchActiveLodge } from '@/lib/auth';
-import { canManageLodge, getDb } from '@/lib/db';
+import { canManageLodge, getDb, validateImageDataUrl } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
@@ -18,22 +18,69 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Niet ingelogd.' }, { status: 401 });
   }
 
-  if (!canManageLodge(user, user.activeLodgeId)) {
-    return NextResponse.json(
-      { error: 'Alleen een Secretaris of Beheerder kan een nieuwe loge aansluiten.' },
-      { status: 403 }
-    );
-  }
-
   const body = (await request.json()) as {
+    action?: 'create' | 'update';
+    lodgeId?: string;
     number?: number;
     name?: string;
     city?: string;
     meetingDay?: string;
     address?: string;
     accentColor?: string;
+    logoUrl?: string;
     description?: string;
   };
+
+  const db = getDb();
+
+  // Bestaande loge bijwerken (bijv. Loge-foto / wapen uploaden of kleur aanpassen)
+  if (body.action === 'update') {
+    const targetLodgeId = body.lodgeId || user.activeLodgeId;
+    if (!canManageLodge(user, targetLodgeId)) {
+      return NextResponse.json(
+        { error: 'Alleen de Secretaris of het Bestuur kan deze loge aanpassen.' },
+        { status: 403 }
+      );
+    }
+
+    const existing = db
+      .prepare('SELECT logo_url, accent_color FROM lodges WHERE id = ?')
+      .get(targetLodgeId) as
+      | { logo_url: string; accent_color: string }
+      | undefined;
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Loge niet gevonden.' },
+        { status: 404 }
+      );
+    }
+
+    let nextLogoUrl = existing.logo_url || '';
+    if (body.logoUrl !== undefined) {
+      const check = validateImageDataUrl(body.logoUrl);
+      if (!check.ok) {
+        return NextResponse.json({ error: check.error }, { status: 400 });
+      }
+      nextLogoUrl = check.value;
+    }
+
+    const nextColor = (body.accentColor || existing.accent_color || '#1B365D').trim();
+
+    db.prepare(
+      'UPDATE lodges SET logo_url = ?, accent_color = ? WHERE id = ?'
+    ).run(nextLogoUrl, nextColor, targetLodgeId);
+
+    return NextResponse.json({ ok: true, lodgeId: targetLodgeId });
+  }
+
+  // Nieuwe loge aanmaken op het platform
+  if (!canManageLodge(user, user.activeLodgeId)) {
+    return NextResponse.json(
+      { error: 'Alleen een Secretaris of Beheerder kan een nieuwe loge aansluiten.' },
+      { status: 403 }
+    );
+  }
 
   const number = Number(body.number || 0);
   const name = (body.name || '').trim();
@@ -49,7 +96,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const db = getDb();
+  const logoCheck = validateImageDataUrl(body.logoUrl);
+  if (!logoCheck.ok) {
+    return NextResponse.json({ error: logoCheck.error }, { status: 400 });
+  }
+
   const lodgeId = slugifyLodge(name, number);
 
   const exists = db
@@ -63,8 +114,8 @@ export async function POST(request: Request) {
   }
 
   db.prepare(
-    `INSERT INTO lodges (id, number, name, city, meeting_day, address, accent_color, description)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO lodges (id, number, name, city, meeting_day, address, accent_color, logo_url, description)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     lodgeId,
     number,
@@ -73,6 +124,7 @@ export async function POST(request: Request) {
     meetingDay || 'Wekelijkse arbeid (20:00 uur)',
     address,
     accentColor,
+    logoCheck.value,
     (body.description || '').trim()
   );
 

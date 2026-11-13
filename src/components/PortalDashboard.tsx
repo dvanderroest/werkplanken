@@ -7,6 +7,7 @@ import {
   BookOpen,
   Building2,
   Calendar,
+  Camera,
   CheckCircle2,
   Compass,
   Home,
@@ -20,11 +21,13 @@ import {
   Settings,
   Shield,
   ShieldCheck,
+  Trash2,
   UserCheck,
   Users,
   X,
 } from 'lucide-react';
 import { formatDutchDate } from '@/lib/format';
+import { resizeImageFileToDataUrl } from '@/lib/imageClient';
 import {
   DEGREE_LABELS,
   DEGREE_SHORT_LABELS,
@@ -77,13 +80,23 @@ export default function PortalDashboard({
   const [docQuery, setDocQuery] = useState('');
   const [readingDoc, setReadingDoc] = useState<LodgeDocument | null>(null);
 
-  // Eigen profiel / standaard dieetwens modal
+  // Eigen profiel / pasfoto / standaard dieetwens modal
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profPhone, setProfPhone] = useState(user.phone);
   const [profCity, setProfCity] = useState(user.city);
   const [profDiet, setProfDiet] = useState(user.dietaryDefault);
+  const [profAvatar, setProfAvatar] = useState(user.avatarUrl || '');
+  const [profPhotoError, setProfPhotoError] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+
+  const userInitials = user.fullName
+    .replace(/^Br\.\s*/i, '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || '')
+    .join('');
 
   const activeMembership = user.memberships.find(
     (m) => m.lodgeId === activeLodge.id
@@ -158,10 +171,35 @@ export default function PortalDashboard({
     router.refresh();
   }
 
+  async function handleSelectProfilePhoto(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProfPhotoError('');
+    try {
+      const dataUrl = await resizeImageFileToDataUrl(file, {
+        maxSize: 256,
+        cropSquare: true,
+        preserveAlpha: false,
+      });
+      setProfAvatar(dataUrl);
+    } catch (err) {
+      setProfPhotoError(
+        err instanceof Error
+          ? err.message
+          : 'Foto kon niet worden ingeladen.'
+      );
+    } finally {
+      e.target.value = '';
+    }
+  }
+
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
     setSavingProfile(true);
     setProfileSaved(false);
+    setProfPhotoError('');
     try {
       const res = await fetch('/api/profile', {
         method: 'POST',
@@ -170,11 +208,15 @@ export default function PortalDashboard({
           phone: profPhone,
           city: profCity,
           dietaryDefault: profDiet,
+          avatarUrl: profAvatar,
         }),
       });
       if (res.ok) {
         setProfileSaved(true);
         router.refresh();
+      } else {
+        const data = (await res.json()) as { error?: string };
+        setProfPhotoError(data.error || 'Opslaan is niet gelukt.');
       }
     } finally {
       setSavingProfile(false);
@@ -235,9 +277,9 @@ export default function PortalDashboard({
             <div className="flex items-start gap-3.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/icon.svg"
-                alt="Symbool"
-                className="w-14 h-14 rounded-xl border border-white/30 shrink-0"
+                src={activeLodge.logoUrl || '/icon.svg'}
+                alt={`Wapen of foto van Loge ${activeLodge.name}`}
+                className="w-14 h-14 rounded-xl border border-white/30 bg-white/10 object-cover shrink-0"
               />
               <div>
                 <div className="text-xs uppercase tracking-wider text-amber-200 font-bold">
@@ -279,6 +321,19 @@ export default function PortalDashboard({
 
             {/* Rechts: Profiel & Graad + Mijn gegevens + Uitloggen */}
             <div className="flex flex-wrap items-center gap-2.5 bg-black/20 p-3 rounded-xl border border-white/15">
+              {user.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user.avatarUrl}
+                  alt={user.fullName}
+                  className="w-11 h-11 rounded-full object-cover border-2 border-amber-200 shrink-0"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-full bg-white/15 border border-white/30 text-amber-200 font-bold flex items-center justify-center text-sm shrink-0">
+                  {userInitials}
+                </div>
+              )}
+
               <div className="mr-2">
                 <div className="font-bold text-base leading-snug">
                   {user.fullName}
@@ -294,11 +349,16 @@ export default function PortalDashboard({
               <button
                 type="button"
                 onClick={() => {
+                  setProfPhone(user.phone);
+                  setProfCity(user.city);
+                  setProfDiet(user.dietaryDefault);
+                  setProfAvatar(user.avatarUrl || '');
+                  setProfPhotoError('');
                   setProfileSaved(false);
                   setShowProfileModal(true);
                 }}
                 className="px-3 py-2 rounded-lg bg-white/15 hover:bg-white/25 text-white text-sm font-semibold inline-flex items-center gap-1.5 cursor-pointer"
-                title="Mijn gegevens en standaard dieetwens"
+                title="Mijn gegevens, pasfoto en standaard dieetwens"
               >
                 <Settings className="w-4 h-4" />
                 <span>Mijn gegevens</span>
@@ -792,7 +852,7 @@ export default function PortalDashboard({
         )}
       </main>
 
-      {/* Modal: Mijn eigen contactgegevens & standaard dieetwens */}
+      {/* Modal: Mijn eigen contactgegevens, pasfoto & standaard dieetwens */}
       {showProfileModal && (
         <div
           className="fixed inset-0 z-50 bg-slate-950/60 flex items-center justify-center p-4"
@@ -800,14 +860,14 @@ export default function PortalDashboard({
           aria-modal="true"
           aria-labelledby="profile-modal-title"
         >
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#D6D0C4]">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#D6D0C4] max-h-[92vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
                 <h2
                   id="profile-modal-title"
                   className="text-2xl font-bold text-[#1B365D]"
                 >
-                  Mijn gegevens &amp; dieetwens
+                  Mijn gegevens, foto &amp; dieetwens
                 </h2>
                 <p className="text-sm text-slate-600">
                   {user.fullName} · {user.email}
@@ -826,11 +886,66 @@ export default function PortalDashboard({
             {profileSaved && (
               <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-500 text-emerald-950 font-semibold flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-emerald-700" />
-                <span>Uw gegevens zijn opgeslagen!</span>
+                <span>Uw gegevens en foto zijn opgeslagen!</span>
+              </div>
+            )}
+
+            {profPhotoError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-500 text-red-950 font-semibold text-sm">
+                {profPhotoError}
               </div>
             )}
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
+              {/* Pasfoto sectie voor 'Wie is wie' */}
+              <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#D6D0C4] flex flex-col sm:flex-row items-center gap-4">
+                {profAvatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profAvatar}
+                    alt="Uw profielfoto"
+                    className="w-20 h-20 rounded-full object-cover border-2 border-[#1B365D] shrink-0"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-[#1B365D] text-[#F6E29C] font-bold flex items-center justify-center text-2xl shrink-0">
+                    {userInitials}
+                  </div>
+                )}
+
+                <div className="flex-1 text-center sm:text-left">
+                  <div className="font-bold text-slate-900 mb-1">
+                    Uw foto voor &ldquo;Wie is wie&rdquo;
+                  </div>
+                  <p className="text-xs text-slate-600 mb-2.5">
+                    Alleen zichtbaar voor broeders van uw eigen loge. Grote
+                    telefoonfoto&apos;s worden automatisch op maat gemaakt.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                    <label className="px-3.5 py-2 rounded-xl bg-[#1B365D] hover:bg-[#132642] text-white text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer">
+                      <Camera className="w-4 h-4" />
+                      <span>{profAvatar ? 'Andere foto kiezen' : 'Foto toevoegen'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => void handleSelectProfilePhoto(e)}
+                        className="sr-only"
+                      />
+                    </label>
+
+                    {profAvatar && (
+                      <button
+                        type="button"
+                        onClick={() => setProfAvatar('')}
+                        className="px-3 py-2 rounded-xl bg-white hover:bg-red-50 border border-slate-300 text-red-700 text-sm font-semibold inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Verwijderen</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-bold text-slate-900 mb-1">
                   Telefoonnummer (zichtbaar voor eigen logebroeders)
@@ -920,9 +1035,18 @@ function MemberCard({
       }`}
     >
       <div className="flex items-start gap-3.5">
-        <div className="w-12 h-12 rounded-full bg-[#1B365D] text-[#F6E29C] font-bold flex items-center justify-center text-lg shrink-0">
-          {initials}
-        </div>
+        {member.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={member.avatarUrl}
+            alt={member.fullName}
+            className="w-14 h-14 rounded-full object-cover border-2 border-[#1B365D]/30 shrink-0"
+          />
+        ) : (
+          <div className="w-14 h-14 rounded-full bg-[#1B365D] text-[#F6E29C] font-bold flex items-center justify-center text-lg shrink-0">
+            {initials}
+          </div>
+        )}
         <div className="min-w-0">
           {member.officerTitle && (
             <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-[#1B365D] text-white text-xs font-bold mb-1">

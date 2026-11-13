@@ -286,7 +286,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   const row = db
     .prepare(
       `SELECT s.user_id, s.active_lodge_id, s.expires_at,
-              u.email, u.full_name, u.phone, u.city, u.degree, u.primary_lodge_id, u.dietary_default,
+              u.email, u.full_name, u.phone, u.city, u.avatar_url, u.degree, u.primary_lodge_id, u.dietary_default,
               pl.name as primary_lodge_name, pl.number as primary_lodge_number, pl.city as primary_lodge_city
        FROM sessions s
        JOIN users u ON u.id = s.user_id
@@ -302,6 +302,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
         full_name: string;
         phone: string;
         city: string;
+        avatar_url: string;
         degree: Degree;
         primary_lodge_id: string;
         dietary_default: string;
@@ -330,6 +331,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     fullName: row.full_name,
     phone: row.phone,
     city: row.city,
+    avatarUrl: row.avatar_url || '',
     degree: row.degree,
     primaryLodgeId: row.primary_lodge_id,
     primaryLodgeName: row.primary_lodge_name,

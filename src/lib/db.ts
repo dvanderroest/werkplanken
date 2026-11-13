@@ -21,13 +21,21 @@ import type {
   UserMembership,
 } from './types';
 
+const SCHEMA_VERSION = 2;
+
 declare global {
   // eslint-disable-next-line no-var
   var __werkplankenDb: DatabaseSync | undefined;
+  // eslint-disable-next-line no-var
+  var __werkplankenSchemaVersion: number | undefined;
 }
 
 export function getDb(): DatabaseSync {
   if (globalThis.__werkplankenDb) {
+    if (globalThis.__werkplankenSchemaVersion !== SCHEMA_VERSION) {
+      ensureSchemaUpgrades(globalThis.__werkplankenDb);
+      globalThis.__werkplankenSchemaVersion = SCHEMA_VERSION;
+    }
     return globalThis.__werkplankenDb;
   }
 
@@ -45,10 +53,61 @@ export function getDb(): DatabaseSync {
   db.exec('PRAGMA busy_timeout = 5000;');
 
   initializeSchema(db);
+  ensureSchemaUpgrades(db);
   seedDatabaseIfEmpty(db);
 
   globalThis.__werkplankenDb = db;
+  globalThis.__werkplankenSchemaVersion = SCHEMA_VERSION;
   return db;
+}
+
+function ensureColumnExists(
+  db: DatabaseSync,
+  tableName: string,
+  columnName: string,
+  columnDefinition: string
+): void {
+  const cols = db
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === columnName)) {
+    db.exec(
+      `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition};`
+    );
+  }
+}
+
+function ensureSchemaUpgrades(db: DatabaseSync): void {
+  ensureColumnExists(db, 'lodges', 'logo_url', "TEXT NOT NULL DEFAULT ''");
+  ensureColumnExists(db, 'users', 'avatar_url', "TEXT NOT NULL DEFAULT ''");
+}
+
+export function validateImageDataUrl(input: unknown):
+  | { ok: true; value: string }
+  | { ok: false; error: string } {
+  if (input === undefined || input === null || input === '') {
+    return { ok: true, value: '' };
+  }
+  if (typeof input !== 'string') {
+    return { ok: false, error: 'Ongeldig afbeeldingsformaat.' };
+  }
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return { ok: true, value: '' };
+  }
+  if (trimmed.length > 500_000) {
+    return {
+      ok: false,
+      error: 'De afbeelding is te groot. Kies een kleinere foto.',
+    };
+  }
+  if (!/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(trimmed)) {
+    return {
+      ok: false,
+      error: 'Alleen JPG, PNG, WebP of GIF afbeeldingen worden ondersteund.',
+    };
+  }
+  return { ok: true, value: trimmed };
 }
 
 function initializeSchema(db: DatabaseSync): void {
@@ -61,6 +120,7 @@ function initializeSchema(db: DatabaseSync): void {
       meeting_day TEXT NOT NULL,
       address TEXT NOT NULL,
       accent_color TEXT NOT NULL DEFAULT '#1B365D',
+      logo_url TEXT NOT NULL DEFAULT '',
       description TEXT NOT NULL DEFAULT ''
     );
 
@@ -70,6 +130,7 @@ function initializeSchema(db: DatabaseSync): void {
       full_name TEXT NOT NULL,
       phone TEXT NOT NULL DEFAULT '',
       city TEXT NOT NULL DEFAULT '',
+      avatar_url TEXT NOT NULL DEFAULT '',
       degree INTEGER NOT NULL CHECK(degree IN (1, 2, 3)),
       primary_lodge_id TEXT NOT NULL REFERENCES lodges(id),
       dietary_default TEXT NOT NULL DEFAULT '',
@@ -200,7 +261,7 @@ export function getLodgeById(lodgeId: string): Lodge | null {
   const db = getDb();
   const row = db
     .prepare(
-      `SELECT id, number, name, city, meeting_day, address, accent_color, description
+      `SELECT id, number, name, city, meeting_day, address, accent_color, logo_url, description
        FROM lodges WHERE id = ?`
     )
     .get(lodgeId) as
@@ -212,6 +273,7 @@ export function getLodgeById(lodgeId: string): Lodge | null {
         meeting_day: string;
         address: string;
         accent_color: string;
+        logo_url: string;
         description: string;
       }
     | undefined;
@@ -225,6 +287,7 @@ export function getLodgeById(lodgeId: string): Lodge | null {
     meetingDay: row.meeting_day,
     address: row.address,
     accentColor: row.accent_color,
+    logoUrl: row.logo_url || '',
     description: row.description,
   };
 }
@@ -233,7 +296,7 @@ export function getAllLodges(): Lodge[] {
   const db = getDb();
   const rows = db
     .prepare(
-      `SELECT id, number, name, city, meeting_day, address, accent_color, description
+      `SELECT id, number, name, city, meeting_day, address, accent_color, logo_url, description
        FROM lodges ORDER BY number ASC`
     )
     .all() as Array<{
@@ -244,6 +307,7 @@ export function getAllLodges(): Lodge[] {
     meeting_day: string;
     address: string;
     accent_color: string;
+    logo_url: string;
     description: string;
   }>;
 
@@ -255,6 +319,7 @@ export function getAllLodges(): Lodge[] {
     meetingDay: row.meeting_day,
     address: row.address,
     accentColor: row.accent_color,
+    logoUrl: row.logo_url || '',
     description: row.description,
   }));
 }
@@ -264,7 +329,8 @@ export function getUserMemberships(userId: string): UserMembership[] {
   const rows = db
     .prepare(
       `SELECT m.lodge_id, m.role, m.officer_title, m.joined_year,
-              l.name as lodge_name, l.number as lodge_number, l.city as lodge_city, l.accent_color
+              l.name as lodge_name, l.number as lodge_number, l.city as lodge_city,
+              l.accent_color, l.logo_url
        FROM lodge_memberships m
        JOIN lodges l ON l.id = m.lodge_id
        WHERE m.user_id = ?
@@ -279,6 +345,7 @@ export function getUserMemberships(userId: string): UserMembership[] {
     lodge_number: number;
     lodge_city: string;
     accent_color: string;
+    logo_url: string;
   }>;
 
   return rows.map((r) => ({
@@ -287,6 +354,7 @@ export function getUserMemberships(userId: string): UserMembership[] {
     lodgeNumber: r.lodge_number,
     lodgeCity: r.lodge_city,
     lodgeAccentColor: r.accent_color,
+    lodgeLogoUrl: r.logo_url || '',
     role: r.role,
     officerTitle: r.officer_title,
     joinedYear: r.joined_year,
@@ -305,7 +373,8 @@ export function getOwnLodgeEvents(
   const rows = db
     .prepare(
       `SELECT e.*,
-              l.name as lodge_name, l.number as lodge_number, l.city as lodge_city, l.accent_color,
+              l.name as lodge_name, l.number as lodge_number, l.city as lodge_city,
+              l.accent_color, l.logo_url as lodge_logo_url,
               r.status as my_status, r.joins_meal as my_meal, r.is_visitor as my_visitor,
               r.dietary_note as my_diet, r.comment as my_comment,
               (SELECT COUNT(*) FROM rsvps r2 WHERE r2.event_id = e.id AND r2.status = 'attending' AND r2.is_visitor = 0) as attending_members,
@@ -333,7 +402,8 @@ export function getVisitorEvents(
   const rows = db
     .prepare(
       `SELECT e.*,
-              l.name as lodge_name, l.number as lodge_number, l.city as lodge_city, l.accent_color,
+              l.name as lodge_name, l.number as lodge_number, l.city as lodge_city,
+              l.accent_color, l.logo_url as lodge_logo_url,
               r.status as my_status, r.joins_meal as my_meal, r.is_visitor as my_visitor,
               r.dietary_note as my_diet, r.comment as my_comment,
               0 as attending_members, 0 as attending_visitors, 0 as declined_members, 0 as meal_count
@@ -365,6 +435,7 @@ function mapEventRow(row: Record<string, unknown>): LodgeEvent {
     lodgeNumber: Number(row.lodge_number),
     lodgeCity: String(row.lodge_city),
     lodgeAccentColor: String(row.accent_color),
+    lodgeLogoUrl: String(row.lodge_logo_url || ''),
     title: String(row.title),
     eventType: String(row.event_type) as EventType,
     minDegree: Number(row.min_degree) as Degree,
@@ -493,7 +564,7 @@ export function getLodgeMembers(
   const db = getDb();
   const rows = db
     .prepare(
-      `SELECT u.id as user_id, u.full_name, u.email, u.phone, u.city, u.degree,
+      `SELECT u.id as user_id, u.full_name, u.email, u.phone, u.city, u.avatar_url, u.degree,
               m.role, m.officer_title, m.sort_order, m.joined_year
        FROM lodge_memberships m
        JOIN users u ON u.id = m.user_id
@@ -506,6 +577,7 @@ export function getLodgeMembers(
     email: string;
     phone: string;
     city: string;
+    avatar_url: string;
     degree: Degree;
     role: LodgeRole;
     officer_title: string | null;
@@ -519,6 +591,7 @@ export function getLodgeMembers(
     email: r.email,
     phone: r.phone,
     city: r.city,
+    avatarUrl: r.avatar_url || '',
     degree: r.degree,
     role: r.role,
     officerTitle: r.officer_title,
@@ -624,7 +697,7 @@ export function getEventRsvpsForManagement(
   const rows = db
     .prepare(
       `SELECT r.id, r.user_id, r.status, r.joins_meal, r.is_visitor, r.dietary_note, r.comment, r.updated_at,
-              u.full_name, u.email, u.phone, u.degree,
+              u.full_name, u.email, u.phone, u.avatar_url, u.degree,
               hl.name as home_lodge_name, hl.number as home_lodge_number, hl.city as home_lodge_city
        FROM rsvps r
        JOIN users u ON u.id = r.user_id
@@ -644,6 +717,7 @@ export function getEventRsvpsForManagement(
     full_name: string;
     email: string;
     phone: string;
+    avatar_url: string;
     degree: Degree;
     home_lodge_name: string;
     home_lodge_number: number;
@@ -656,6 +730,7 @@ export function getEventRsvpsForManagement(
     fullName: r.full_name,
     email: r.email,
     phone: r.phone,
+    avatarUrl: r.avatar_url || '',
     degree: r.degree,
     homeLodgeName: r.home_lodge_name,
     homeLodgeNumber: r.home_lodge_number,

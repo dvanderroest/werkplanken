@@ -121,11 +121,21 @@ export default function EventCard({
         <div className="flex flex-wrap items-center gap-2">
           {isVisitorMode && (
             <span
-              className="px-3 py-1 rounded-lg text-white font-bold text-sm"
+              className="px-3 py-1 rounded-lg text-white font-bold text-sm inline-flex items-center gap-2"
               style={{ backgroundColor: event.lodgeAccentColor || '#1B365D' }}
             >
-              Loge {event.lodgeName} Nr. {event.lodgeNumber} · Oosten{' '}
-              {event.lodgeCity}
+              {event.lodgeLogoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={event.lodgeLogoUrl}
+                  alt={`Loge ${event.lodgeName}`}
+                  className="w-6 h-6 rounded object-cover bg-white/15 shrink-0"
+                />
+              )}
+              <span>
+                Loge {event.lodgeName} Nr. {event.lodgeNumber} · Oosten{' '}
+                {event.lodgeCity}
+              </span>
             </span>
           )}
           <span className="inline-flex items-center gap-1.5 font-bold text-[#1B365D]">

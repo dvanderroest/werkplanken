@@ -6,16 +6,19 @@ import {
   BookOpen,
   Building2,
   CalendarPlus,
+  Camera,
   CheckCircle2,
   ClipboardList,
   Mail,
   Megaphone,
   Printer,
+  Trash2,
   UserPlus,
   Users,
   Utensils,
 } from 'lucide-react';
 import { formatDutchDate } from '@/lib/format';
+import { resizeImageFileToDataUrl } from '@/lib/imageClient';
 import {
   DEGREE_LABELS,
   DEGREE_SHORT_LABELS,
@@ -92,17 +95,25 @@ export default function SecretaryPanel({
   const [docSummary, setDocSummary] = useState('');
   const [docContent, setDocContent] = useState('');
 
-  // State voor Nieuwe Loge aansluiten
+  // State voor Huidige Loge foto/kleur & Nieuwe Loge aansluiten
+  const [curLodgeLogo, setCurLodgeLogo] = useState(lodge.logoUrl || '');
+  const [curLodgeColor, setCurLodgeColor] = useState(
+    lodge.accentColor || '#1B365D'
+  );
+
   const [nlNumber, setNlNumber] = useState('');
   const [nlName, setNlName] = useState('');
   const [nlCity, setNlCity] = useState('');
   const [nlMeetingDay, setNlMeetingDay] = useState('Woensdagavond (aanvang 20:00 uur)');
   const [nlAddress, setNlAddress] = useState('');
   const [nlColor, setNlColor] = useState('#1B365D');
+  const [nlLogo, setNlLogo] = useState('');
 
   useEffect(() => {
     setEvLocation(lodge.address);
-  }, [lodge.address]);
+    setCurLodgeLogo(lodge.logoUrl || '');
+    setCurLodgeColor(lodge.accentColor || '#1B365D');
+  }, [lodge.address, lodge.logoUrl, lodge.accentColor]);
 
   useEffect(() => {
     if (!events.some((e) => e.id === selectedEventId)) {
@@ -350,6 +361,64 @@ export default function SecretaryPanel({
     }
   }
 
+  async function handleSelectLodgeImage(
+    e: React.ChangeEvent<HTMLInputElement>,
+    target: 'current' | 'new'
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    clearAlerts();
+    try {
+      const dataUrl = await resizeImageFileToDataUrl(file, {
+        maxSize: 256,
+        cropSquare: false,
+        preserveAlpha: true,
+      });
+      if (target === 'current') {
+        setCurLodgeLogo(dataUrl);
+      } else {
+        setNlLogo(dataUrl);
+      }
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : 'Afbeelding kon niet worden verwerkt.'
+      );
+    } finally {
+      e.target.value = '';
+    }
+  }
+
+  async function handleUpdateCurrentLodge(e: React.FormEvent) {
+    e.preventDefault();
+    clearAlerts();
+    setSavingForm(true);
+    try {
+      const res = await fetch('/api/manage/lodges', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update',
+          lodgeId: lodge.id,
+          logoUrl: curLodgeLogo,
+          accentColor: curLodgeColor,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setErrorMsg(data.error || 'Opslaan van loge-instellingen mislukt.');
+        return;
+      }
+      setFeedback(
+        `De foto en kleur van Loge ${lodge.name} Nr. ${lodge.number} zijn bijgewerkt!`
+      );
+      router.refresh();
+    } finally {
+      setSavingForm(false);
+    }
+  }
+
   async function handleCreateLodge(e: React.FormEvent) {
     e.preventDefault();
     clearAlerts();
@@ -359,12 +428,14 @@ export default function SecretaryPanel({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'create',
           number: Number(nlNumber),
           name: nlName,
           city: nlCity,
           meetingDay: nlMeetingDay,
           address: nlAddress,
           accentColor: nlColor,
+          logoUrl: nlLogo,
         }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
@@ -376,6 +447,7 @@ export default function SecretaryPanel({
       setNlName('');
       setNlCity('');
       setNlAddress('');
+      setNlLogo('');
       setFeedback('De nieuwe loge is aangesloten! U bent automatisch overgeschakeld.');
       setSubTab('attendance');
       router.refresh();
@@ -465,7 +537,7 @@ export default function SecretaryPanel({
           }`}
         >
           <Building2 className="w-5 h-5" />
-          <span>Nieuwe Loge aansluiten</span>
+          <span>Loge-foto &amp; Nieuwe Loge</span>
         </button>
       </div>
 
@@ -1209,128 +1281,284 @@ export default function SecretaryPanel({
         </div>
       )}
 
-      {/* TAB 5: Nieuwe Loge op het gezamenlijke platform aansluiten */}
+      {/* TAB 5: Loge-foto van huidige loge + Nieuwe Loge op het platform aansluiten */}
       {subTab === 'new-lodge' && (
-        <section className="bg-white rounded-2xl shadow-sm border border-[#D6D0C4] p-6 max-w-2xl">
-          <h2 className="text-2xl font-bold text-[#1B365D] flex items-center gap-2 mb-2">
-            <Building2 className="w-6 h-6" />
-            Eigen of Nieuwe Loge aansluiten op het Platform
-          </h2>
-          <p className="text-slate-700 mb-6">
-            Voeg hier in een handomdraai een nieuwe loge toe (bijvoorbeeld uw
-            eigen loge). De ledenlijst en stukken blijven strikt gescheiden van
-            andere loges, terwijl opengestelde avonden wél te vinden zijn voor
-            visiteurs.
-          </p>
+        <div className="space-y-6">
+          {/* Kaart A: Foto / Wapen van huidige loge instellen */}
+          <section className="bg-white rounded-2xl shadow-sm border border-[#D6D0C4] p-6 max-w-2xl">
+            <h2 className="text-2xl font-bold text-[#1B365D] flex items-center gap-2 mb-2">
+              <Camera className="w-6 h-6" />
+              Foto of Wapen van Loge {lodge.name} Nr. {lodge.number}
+            </h2>
+            <p className="text-slate-700 mb-5">
+              Voeg het onderscheidingsteken, wapen of een foto van het
+              logegebouw toe voor uw huidige loge. Dit verschijnt bovenin de
+              balk én bij bijeenkomsten op de Landelijke Arbeidstafel.
+            </p>
 
-          <form onSubmit={handleCreateLodge} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <form onSubmit={handleUpdateCurrentLodge} className="space-y-4">
+              <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#D6D0C4] flex flex-col sm:flex-row items-center gap-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={curLodgeLogo || '/icon.svg'}
+                  alt={`Wapen van Loge ${lodge.name}`}
+                  className="w-20 h-20 rounded-xl object-cover border-2 border-[#1B365D]/30 bg-[#1B365D] shrink-0"
+                />
+                <div className="flex-1 text-center sm:text-left">
+                  <div className="font-bold text-slate-900 mb-1">
+                    Afbeelding voor Loge {lodge.name}
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
+                    <label className="px-4 py-2.5 rounded-xl bg-[#1B365D] hover:bg-[#132642] text-white text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer">
+                      <Camera className="w-4 h-4" />
+                      <span>
+                        {curLodgeLogo ? 'Andere foto kiezen' : 'Foto / Wapen kiezen'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                          void handleSelectLodgeImage(e, 'current')
+                        }
+                        className="sr-only"
+                      />
+                    </label>
+
+                    {curLodgeLogo && (
+                      <button
+                        type="button"
+                        onClick={() => setCurLodgeLogo('')}
+                        className="px-3 py-2.5 rounded-xl bg-white hover:bg-red-50 border border-slate-300 text-red-700 text-sm font-semibold inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Standaard symbool</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-bold text-slate-900 mb-1">
-                  Logenummer *
+                  Logekleur (bovenbalk)
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  required
-                  value={nlNumber}
-                  onChange={(e) => setNlNumber(e.target.value)}
-                  placeholder="Bijv. 87"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 bg-white"
-                />
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { hex: '#1B365D', label: 'Koningsblauw' },
+                    { hex: '#7F1D1D', label: 'Bordeauxrood' },
+                    { hex: '#14532D', label: 'Tempelgroen' },
+                    { hex: '#4C1D95', label: 'Dieppaars' },
+                    { hex: '#78350F', label: 'Warm Brons' },
+                  ].map((c) => (
+                    <button
+                      key={c.hex}
+                      type="button"
+                      onClick={() => setCurLodgeColor(c.hex)}
+                      className={`px-3.5 py-2 rounded-xl text-white font-bold text-sm cursor-pointer ${
+                        curLodgeColor === c.hex
+                          ? 'ring-4 ring-amber-400'
+                          : 'opacity-80'
+                      }`}
+                      style={{ backgroundColor: c.hex }}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="sm:col-span-2">
-                <label className="block font-bold text-slate-900 mb-1">
-                  Naam van de Loge (zonder &apos;Loge&apos;) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={nlName}
-                  onChange={(e) => setNlName(e.target.value)}
-                  placeholder="Bijv. La Paix of Vicit Vim Virtus"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 bg-white"
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-bold text-slate-900 mb-1">
-                  Oosten (Stad) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={nlCity}
-                  onChange={(e) => setNlCity(e.target.value)}
-                  placeholder="Bijv. Leiden"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-900 mb-1">
-                  Vaste bijeenkomstdag
-                </label>
-                <input
-                  type="text"
-                  value={nlMeetingDay}
-                  onChange={(e) => setNlMeetingDay(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 bg-white"
-                />
-              </div>
-            </div>
+              <button
+                type="submit"
+                disabled={savingForm}
+                className="py-3 px-6 rounded-xl bg-[#1B365D] hover:bg-[#132642] text-white font-bold cursor-pointer"
+              >
+                Wijzigingen voor Loge {lodge.name} opslaan
+              </button>
+            </form>
+          </section>
 
-            <div>
-              <label className="block font-bold text-slate-900 mb-1">
-                Adres van het Logegebouw *
-              </label>
-              <input
-                type="text"
-                required
-                value={nlAddress}
-                onChange={(e) => setNlAddress(e.target.value)}
-                placeholder="Straat en huisnummer, Postcode Plaats"
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 bg-white"
-              />
-            </div>
+          {/* Kaart B: Volledig nieuwe Loge aanmaken (mét foto!) */}
+          <section className="bg-white rounded-2xl shadow-sm border border-[#D6D0C4] p-6 max-w-2xl">
+            <h2 className="text-2xl font-bold text-[#1B365D] flex items-center gap-2 mb-2">
+              <Building2 className="w-6 h-6" />
+              Nieuwe Loge aansluiten op het Platform
+            </h2>
+            <p className="text-slate-700 mb-6">
+              Voeg hier een nieuwe loge toe (bijvoorbeeld uw eigen loge),
+              inclusief een foto of onderscheidingsteken. De ledenlijst en
+              stukken blijven strikt gescheiden van andere loges, terwijl
+              opengestelde avonden wél te vinden zijn voor visiteurs.
+            </p>
 
-            <div>
-              <label className="block font-bold text-slate-900 mb-1">
-                Logekleur (bovenbalk)
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { hex: '#1B365D', label: 'Koningsblauw' },
-                  { hex: '#7F1D1D', label: 'Bordeauxrood' },
-                  { hex: '#14532D', label: 'Tempelgroen' },
-                  { hex: '#4C1D95', label: 'Dieppaars' },
-                  { hex: '#78350F', label: 'Warm Brons' },
-                ].map((c) => (
-                  <button
-                    key={c.hex}
-                    type="button"
-                    onClick={() => setNlColor(c.hex)}
-                    className={`px-3.5 py-2 rounded-xl text-white font-bold text-sm cursor-pointer ${
-                      nlColor === c.hex ? 'ring-4 ring-amber-400' : 'opacity-80'
-                    }`}
-                    style={{ backgroundColor: c.hex }}
+            <form onSubmit={handleCreateLodge} className="space-y-4">
+              {/* Foto / Wapen voor de nieuwe loge */}
+              <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#D6D0C4] flex flex-col sm:flex-row items-center gap-4">
+                {nlLogo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={nlLogo}
+                    alt="Voorbeeld logefoto"
+                    className="w-20 h-20 rounded-xl object-cover border-2 border-[#1B365D]/30 bg-white shrink-0"
+                  />
+                ) : (
+                  <div
+                    className="w-20 h-20 rounded-xl flex items-center justify-center border-2 border-white/30 shrink-0"
+                    style={{ backgroundColor: nlColor }}
                   >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/icon.svg"
+                      alt="Standaard symbool"
+                      className="w-14 h-14"
+                    />
+                  </div>
+                )}
 
-            <button
-              type="submit"
-              disabled={savingForm}
-              className="py-3.5 px-7 rounded-xl bg-[#1B365D] hover:bg-[#132642] text-white font-bold text-lg cursor-pointer"
-            >
-              Loge aanmaken &amp; openen
-            </button>
-          </form>
-        </section>
+                <div className="flex-1 text-center sm:text-left">
+                  <div className="font-bold text-slate-900 mb-1">
+                    Foto of Onderscheidingsteken van de Loge (optioneel)
+                  </div>
+                  <p className="text-xs text-slate-600 mb-2">
+                    Kies het logewapen, onderscheidingsteken of een foto van het
+                    gebouw vanaf uw computer of telefoon.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                    <label className="px-4 py-2 rounded-xl bg-[#1B365D] hover:bg-[#132642] text-white text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer">
+                      <Camera className="w-4 h-4" />
+                      <span>
+                        {nlLogo ? 'Andere foto kiezen' : 'Foto toevoegen'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => void handleSelectLodgeImage(e, 'new')}
+                        className="sr-only"
+                      />
+                    </label>
+                    {nlLogo && (
+                      <button
+                        type="button"
+                        onClick={() => setNlLogo('')}
+                        className="px-3 py-2 rounded-xl bg-white hover:bg-red-50 border border-slate-300 text-red-700 text-sm font-semibold inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Verwijderen</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-900 mb-1">
+                    Logenummer *
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={nlNumber}
+                    onChange={(e) => setNlNumber(e.target.value)}
+                    placeholder="Bijv. 87"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 bg-white"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-900 mb-1">
+                    Naam van de Loge (zonder &apos;Loge&apos;) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={nlName}
+                    onChange={(e) => setNlName(e.target.value)}
+                    placeholder="Bijv. La Paix of Vicit Vim Virtus"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-900 mb-1">
+                    Oosten (Stad) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={nlCity}
+                    onChange={(e) => setNlCity(e.target.value)}
+                    placeholder="Bijv. Leiden"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-900 mb-1">
+                    Vaste bijeenkomstdag
+                  </label>
+                  <input
+                    type="text"
+                    value={nlMeetingDay}
+                    onChange={(e) => setNlMeetingDay(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-900 mb-1">
+                  Adres van het Logegebouw *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={nlAddress}
+                  onChange={(e) => setNlAddress(e.target.value)}
+                  placeholder="Straat en huisnummer, Postcode Plaats"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-900 mb-1">
+                  Logekleur (bovenbalk)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { hex: '#1B365D', label: 'Koningsblauw' },
+                    { hex: '#7F1D1D', label: 'Bordeauxrood' },
+                    { hex: '#14532D', label: 'Tempelgroen' },
+                    { hex: '#4C1D95', label: 'Dieppaars' },
+                    { hex: '#78350F', label: 'Warm Brons' },
+                  ].map((c) => (
+                    <button
+                      key={c.hex}
+                      type="button"
+                      onClick={() => setNlColor(c.hex)}
+                      className={`px-3.5 py-2 rounded-xl text-white font-bold text-sm cursor-pointer ${
+                        nlColor === c.hex
+                          ? 'ring-4 ring-amber-400'
+                          : 'opacity-80'
+                      }`}
+                      style={{ backgroundColor: c.hex }}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingForm}
+                className="py-3.5 px-7 rounded-xl bg-[#1B365D] hover:bg-[#132642] text-white font-bold text-lg cursor-pointer"
+              >
+                Loge aanmaken &amp; openen
+              </button>
+            </form>
+          </section>
+        </div>
       )}
     </div>
   );

@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
   const userRow = db
     .prepare(
-      `SELECT u.id, u.email, u.full_name, u.phone, u.city, u.degree, u.primary_lodge_id, u.dietary_default,
+      `SELECT u.id, u.email, u.full_name, u.phone, u.city, u.avatar_url, u.degree, u.primary_lodge_id, u.dietary_default,
               pl.name as primary_lodge_name, pl.number as primary_lodge_number, pl.city as primary_lodge_city,
               e.lodge_id as event_lodge_id, e.title as event_title
        FROM users u
@@ -58,6 +58,7 @@ export async function POST(request: Request) {
         full_name: string;
         phone: string;
         city: string;
+        avatar_url: string;
         degree: Degree;
         primary_lodge_id: string;
         dietary_default: string;
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
     fullName: userRow.full_name,
     phone: userRow.phone,
     city: userRow.city,
+    avatarUrl: userRow.avatar_url || '',
     degree: userRow.degree,
     primaryLodgeId: userRow.primary_lodge_id,
     primaryLodgeName: userRow.primary_lodge_name,

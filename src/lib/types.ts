@@ -44,6 +44,7 @@ export interface Lodge {
   meetingDay: string;
   address: string;
   accentColor: string;
+  logoUrl: string;
   description: string;
 }
 
@@ -53,6 +54,7 @@ export interface UserMembership {
   lodgeNumber: number;
   lodgeCity: string;
   lodgeAccentColor: string;
+  lodgeLogoUrl: string;
   role: LodgeRole;
   officerTitle: string | null;
   joinedYear: number | null;
@@ -64,6 +66,7 @@ export interface AuthenticatedUser {
   fullName: string;
   phone: string;
   city: string;
+  avatarUrl: string;
   degree: Degree;
   primaryLodgeId: string;
   primaryLodgeName: string;
@@ -81,6 +84,7 @@ export interface LodgeEvent {
   lodgeNumber: number;
   lodgeCity: string;
   lodgeAccentColor: string;
+  lodgeLogoUrl: string;
   title: string;
   eventType: EventType;
   minDegree: Degree;
@@ -114,6 +118,7 @@ export interface EventRsvpDetail {
   fullName: string;
   email: string;
   phone: string;
+  avatarUrl: string;
   degree: Degree;
   homeLodgeName: string;
   homeLodgeNumber: number;
@@ -132,6 +137,7 @@ export interface LodgeMemberView {
   email: string;
   phone: string;
   city: string;
+  avatarUrl: string;
   degree: Degree;
   role: LodgeRole;
   officerTitle: string | null;
