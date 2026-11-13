@@ -26,8 +26,8 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
 
   // 1. Loges
   const insertLodge = db.prepare(`
-    INSERT INTO lodges (id, number, name, city, meeting_day, address, accent_color, description)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO lodges (id, number, name, city, meeting_day, address, accent_color, logo_url, description)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   insertLodge.run(
@@ -38,6 +38,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Dinsdagavond (aanvang 20:00 uur)',
     'Logegebouw Ripperdapark 14, 2011 NP Haarlem',
     '#1B365D',
+    '/demo/loge-noorderster.jpg',
     'Opgericht in 1854 in het Oosten Haarlem. Wekelijkse arbeid op dinsdagavond met afwisselend Open Loges en Comparities.'
   );
 
@@ -49,6 +50,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Woensdagavond (aanvang 20:00 uur)',
     'Maliebaan 70, 3581 CV Utrecht',
     '#7F1D1D',
+    '/demo/loge-concordia.jpg',
     'Werkplaats in het Oosten Utrecht waar broederschap, verdieping en gastvrijheid voor visiteurs centraal staan.'
   );
 
@@ -60,13 +62,14 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Tweede donderdag van de maand (19:30 uur)',
     'Van Persijnstraat 17, 3811 LS Amersfoort',
     '#14532D',
+    '/demo/loge-ars-regia.jpg',
     'Bovenlokale studieloge gericht op symboliek, rituaalgeschiedenis en verdiepende bouwstukken.'
   );
 
   // 2. Broeders (Users)
   const insertUser = db.prepare(`
-    INSERT INTO users (id, email, full_name, phone, city, degree, primary_lodge_id, dietary_default, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO users (id, email, full_name, phone, city, avatar_url, degree, primary_lodge_id, dietary_default, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   // Vier hoofd-testaccounts voor Loge De Noorderster
@@ -76,6 +79,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Br. Willem Vermeer',
     '06-21448810',
     'Haarlem',
+    '/demo/usr-willem.jpg',
     3,
     'loge-noorderster',
     '',
@@ -87,6 +91,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Br. Hendrik de Vries',
     '06-51223344',
     'Bloemendaal',
+    '/demo/usr-hendrik.jpg',
     3,
     'loge-noorderster',
     'Geen schaal- en schelpdieren',
@@ -98,6 +103,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Br. Thomas Bakker',
     '06-38991122',
     'Heemstede',
+    '/demo/usr-thomas.jpg',
     2,
     'loge-noorderster',
     'Vegetarisch',
@@ -109,6 +115,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Br. Daan Meijer',
     '06-44776655',
     'Haarlem',
+    '/demo/usr-daan.jpg',
     1,
     'loge-noorderster',
     '',
@@ -122,6 +129,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Br. Johannes van Dam',
     '023-5314422',
     'Santpoort-Zuid',
+    '/demo/usr-johannes.jpg',
     3,
     'loge-noorderster',
     '',
@@ -133,6 +141,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Br. Arthur Mulder',
     '06-19283746',
     'Overveen',
+    '/demo/usr-arthur.jpg',
     3,
     'loge-noorderster',
     '',
@@ -144,6 +153,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Br. Gerard Bos',
     '023-5248890',
     'Aerdenhout',
+    '/demo/usr-gerard.jpg',
     3,
     'loge-noorderster',
     'Glutenvrij',
@@ -155,6 +165,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Br. Maarten Vos',
     '06-82736455',
     'Zandvoort',
+    '/demo/usr-maarten.jpg',
     3,
     'loge-noorderster',
     '',
@@ -168,6 +179,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Br. Karel van Dijk',
     '06-77665544',
     'Utrecht',
+    '/demo/usr-karel.jpg',
     3,
     'loge-concordia',
     '',
@@ -179,6 +191,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Br. Pieter Jansen',
     '06-66554433',
     'Zeist',
+    '/demo/usr-pieter.jpg',
     3,
     'loge-concordia',
     'Vegetarisch',
@@ -190,6 +203,7 @@ export function seedDatabaseIfEmpty(db: DatabaseSync): void {
     'Br. Roelof Smits',
     '030-2719988',
     'De Bilt',
+    '/demo/usr-roelof.jpg',
     2,
     'loge-concordia',
     '',

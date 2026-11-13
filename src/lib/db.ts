@@ -21,7 +21,7 @@ import type {
   UserMembership,
 } from './types';
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 4;
 
 declare global {
   // eslint-disable-next-line no-var
@@ -80,6 +80,41 @@ function ensureColumnExists(
 function ensureSchemaUpgrades(db: DatabaseSync): void {
   ensureColumnExists(db, 'lodges', 'logo_url', "TEXT NOT NULL DEFAULT ''");
   ensureColumnExists(db, 'users', 'avatar_url', "TEXT NOT NULL DEFAULT ''");
+  applyDemoImagesIfBlank(db);
+}
+
+function applyDemoImagesIfBlank(db: DatabaseSync): void {
+  const demoLodges: Array<[string, string]> = [
+    ['loge-noorderster', '/demo/loge-noorderster.jpg'],
+    ['loge-concordia', '/demo/loge-concordia.jpg'],
+    ['loge-ars-regia', '/demo/loge-ars-regia.jpg'],
+  ];
+  const updateLodge = db.prepare(
+    `UPDATE lodges SET logo_url = ? WHERE id = ? AND (logo_url IS NULL OR logo_url = '' OR logo_url LIKE '/demo/%.png')`
+  );
+  for (const [id, url] of demoLodges) {
+    updateLodge.run(url, id);
+  }
+
+  const demoUsers: Array<[string, string]> = [
+    ['usr-willem', '/demo/usr-willem.jpg'],
+    ['usr-hendrik', '/demo/usr-hendrik.jpg'],
+    ['usr-thomas', '/demo/usr-thomas.jpg'],
+    ['usr-daan', '/demo/usr-daan.jpg'],
+    ['usr-johannes', '/demo/usr-johannes.jpg'],
+    ['usr-arthur', '/demo/usr-arthur.jpg'],
+    ['usr-gerard', '/demo/usr-gerard.jpg'],
+    ['usr-maarten', '/demo/usr-maarten.jpg'],
+    ['usr-karel', '/demo/usr-karel.jpg'],
+    ['usr-pieter', '/demo/usr-pieter.jpg'],
+    ['usr-roelof', '/demo/usr-roelof.jpg'],
+  ];
+  const updateUser = db.prepare(
+    `UPDATE users SET avatar_url = ? WHERE id = ? AND (avatar_url IS NULL OR avatar_url = '' OR avatar_url LIKE '/demo/%.png')`
+  );
+  for (const [id, url] of demoUsers) {
+    updateUser.run(url, id);
+  }
 }
 
 export function validateImageDataUrl(input: unknown):
@@ -94,6 +129,9 @@ export function validateImageDataUrl(input: unknown):
   const trimmed = input.trim();
   if (!trimmed) {
     return { ok: true, value: '' };
+  }
+  if (/^\/demo\/[a-z0-9-_]+\.(png|jpg|jpeg|webp|svg)$/i.test(trimmed)) {
+    return { ok: true, value: trimmed };
   }
   if (trimmed.length > 500_000) {
     return {

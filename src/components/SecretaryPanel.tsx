@@ -687,12 +687,24 @@ export default function SecretaryPanel({
                             {attendingList.map((r) => (
                               <tr key={r.id} className="bg-white">
                                 <td className="p-3 font-bold text-slate-900">
-                                  {r.fullName}
-                                  {r.isVisitor && (
-                                    <span className="ml-2 inline-block px-2 py-0.5 rounded bg-amber-100 text-amber-950 border border-amber-400 text-xs font-bold">
-                                      Visiteur
-                                    </span>
-                                  )}
+                                  <div className="flex items-center gap-2.5">
+                                    {r.avatarUrl ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={r.avatarUrl}
+                                        alt={r.fullName}
+                                        className="w-9 h-9 rounded-full object-cover border border-slate-300 shrink-0"
+                                      />
+                                    ) : null}
+                                    <div>
+                                      <span>{r.fullName}</span>
+                                      {r.isVisitor && (
+                                        <span className="ml-2 inline-block px-2 py-0.5 rounded bg-amber-100 text-amber-950 border border-amber-400 text-xs font-bold">
+                                          Visiteur
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
                                 </td>
                                 <td className="p-3 text-slate-700">
                                   <div>
@@ -1586,10 +1598,20 @@ function MemberManageRow({
 
   return (
     <div className="py-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-      <div>
-        <div className="font-bold text-slate-900">{member.fullName}</div>
-        <div className="text-sm text-slate-600">
-          {member.email} {member.phone ? `· ${member.phone}` : ''}
+      <div className="flex items-center gap-3">
+        {member.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={member.avatarUrl}
+            alt={member.fullName}
+            className="w-11 h-11 rounded-full object-cover border border-slate-300 shrink-0"
+          />
+        ) : null}
+        <div>
+          <div className="font-bold text-slate-900">{member.fullName}</div>
+          <div className="text-sm text-slate-600">
+            {member.email} {member.phone ? `· ${member.phone}` : ''}
+          </div>
         </div>
       </div>
 

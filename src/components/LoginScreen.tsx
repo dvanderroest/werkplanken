@@ -20,24 +20,32 @@ const DEMO_ACCOUNTS = [
   {
     email: 'secretaris@noorderster.loge',
     name: 'Br. Willem Vermeer',
+    avatar: '/demo/usr-willem.jpg',
+    lodgeLogo: '/demo/loge-noorderster.jpg',
     badge: 'Secretaris · Meester (3e graad)',
     detail: 'Lid van 2 loges (Haarlem & Studieloge Amersfoort) + Beheerrechten',
   },
   {
     email: 'gezel@noorderster.loge',
     name: 'Br. Thomas Bakker',
+    avatar: '/demo/usr-thomas.jpg',
+    lodgeLogo: '/demo/loge-noorderster.jpg',
     badge: 'Gezel (2e graad)',
     detail: 'Loge De Noorderster · Ziet 1e & 2e graad, géén Meesterarbeid',
   },
   {
     email: 'leerling@noorderster.loge',
     name: 'Br. Daan Meijer',
+    avatar: '/demo/usr-daan.jpg',
+    lodgeLogo: '/demo/loge-noorderster.jpg',
     badge: 'Leerling (1e graad)',
     detail: 'Loge De Noorderster · Ziet uitsluitend 1e-graads bijeenkomsten & stukken',
   },
   {
     email: 'secretaris@concordia.loge',
     name: 'Br. Karel van Dijk',
+    avatar: '/demo/usr-karel.jpg',
+    lodgeLogo: '/demo/loge-concordia.jpg',
     badge: 'Secretaris · Meester (3e graad)',
     detail: 'Zusterloge Concordia Nr. 18 (Utrecht) · Kan visiteren in Haarlem',
   },
@@ -367,13 +375,29 @@ export default function LoginScreen({ devMailboxEnabled }: LoginScreenProps) {
                 className="text-left p-4 rounded-xl border border-slate-300 hover:border-[#1B365D] hover:bg-[#FAF8F5] transition flex flex-col justify-between cursor-pointer group"
               >
                 <div>
-                  <div className="font-bold text-slate-900 group-hover:text-[#1B365D]">
-                    {acc.name}
+                  <div className="flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={acc.avatar}
+                      alt={acc.name}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-[#1B365D]/30 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-slate-900 group-hover:text-[#1B365D] flex items-center gap-1.5">
+                        <span className="truncate">{acc.name}</span>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={acc.lodgeLogo}
+                          alt=""
+                          className="w-5 h-5 rounded object-cover shrink-0"
+                        />
+                      </div>
+                      <div className="inline-block mt-1 px-2 py-0.5 rounded bg-[#1B365D]/10 text-[#1B365D] text-xs font-bold">
+                        {acc.badge}
+                      </div>
+                    </div>
                   </div>
-                  <div className="inline-block mt-1 px-2 py-0.5 rounded bg-[#1B365D]/10 text-[#1B365D] text-xs font-bold">
-                    {acc.badge}
-                  </div>
-                  <p className="text-xs text-slate-600 mt-2">{acc.detail}</p>
+                  <p className="text-xs text-slate-600 mt-2.5">{acc.detail}</p>
                 </div>
                 <div className="mt-3 text-xs font-bold text-[#1B365D] flex items-center gap-1">
                   Open als {acc.name.replace('Br. ', '')} →
