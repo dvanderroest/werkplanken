@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { canManageLodge, getDb, newId } from '@/lib/db';
@@ -52,5 +53,6 @@ export async function POST(request: Request) {
     new Date().toISOString()
   );
 
+  revalidatePath('/', 'layout');
   return NextResponse.json({ ok: true });
 }

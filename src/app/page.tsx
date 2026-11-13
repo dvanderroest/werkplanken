@@ -13,6 +13,7 @@ import {
 import { isDevMailboxEnabled } from '@/lib/mailer';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
 
 export default async function HomePage() {
@@ -37,6 +38,7 @@ export default async function HomePage() {
 
   return (
     <PortalDashboard
+      key={`${user.id}-${activeLodge.id}`}
       user={user}
       activeLodge={activeLodge}
       canManage={canManage}

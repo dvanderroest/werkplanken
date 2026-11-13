@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { switchActiveLodge } from '@/lib/auth';
 
@@ -17,5 +18,6 @@ export async function POST(request: Request) {
     );
   }
 
+  revalidatePath('/', 'layout');
   return NextResponse.json({ ok: true });
 }

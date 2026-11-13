@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { saveUserRsvp } from '@/lib/db';
@@ -45,5 +46,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: result.error }, { status: 403 });
   }
 
+  revalidatePath('/', 'layout');
   return NextResponse.json(result);
 }

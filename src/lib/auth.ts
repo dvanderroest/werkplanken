@@ -285,7 +285,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
 
   const row = db
     .prepare(
-      `SELECT s.user_id, s.active_lodge_id, s.expires_at,
+      `SELECT s.user_id, s.active_lodge_id, s.expires_at, s.last_seen_at,
               u.email, u.full_name, u.phone, u.city, u.avatar_url, u.degree, u.primary_lodge_id, u.dietary_default,
               pl.name as primary_lodge_name, pl.number as primary_lodge_number, pl.city as primary_lodge_city
        FROM sessions s
@@ -298,6 +298,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
         user_id: string;
         active_lodge_id: string;
         expires_at: number;
+        last_seen_at: number;
         email: string;
         full_name: string;
         phone: string;
@@ -314,10 +315,12 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
 
   if (!row) return null;
 
-  // Stilzwijgende verlenging van de sessie in de database bij elk gebruik
-  db.prepare(
-    'UPDATE sessions SET last_seen_at = ?, expires_at = ? WHERE token_hash = ?'
-  ).run(now, Math.max(row.expires_at, now + ONE_YEAR_MS), tokenHash);
+  // Verleng de sessie maximaal eens per uur zodat SQLite niet bij elke paginaweergave naar schijf schrijft
+  if (now - row.last_seen_at > 60 * 60 * 1000) {
+    db.prepare(
+      'UPDATE sessions SET last_seen_at = ?, expires_at = ? WHERE token_hash = ?'
+    ).run(now, Math.max(row.expires_at, now + ONE_YEAR_MS), tokenHash);
+  }
 
   const memberships = getUserMemberships(row.user_id);
   const validActiveLodgeId =

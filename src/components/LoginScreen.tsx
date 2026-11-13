@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   ArrowRight,
@@ -51,8 +50,15 @@ const DEMO_ACCOUNTS = [
   },
 ];
 
+function reloadPortalRoot() {
+  if (window.location.pathname === '/' && !window.location.search) {
+    window.location.reload();
+  } else {
+    window.location.replace('/');
+  }
+}
+
 export default function LoginScreen({ devMailboxEnabled }: LoginScreenProps) {
-  const router = useRouter();
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -111,12 +117,12 @@ export default function LoginScreen({ devMailboxEnabled }: LoginScreenProps) {
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) {
         setError(data.error || 'Deze code is niet juist.');
+        setLoading(false);
         return;
       }
-      router.refresh();
+      reloadPortalRoot();
     } catch {
       setError('Er ging iets mis bij het controleren van de code.');
-    } finally {
       setLoading(false);
     }
   }
@@ -131,12 +137,14 @@ export default function LoginScreen({ devMailboxEnabled }: LoginScreenProps) {
         body: JSON.stringify({ email: demoEmail }),
       });
       if (res.ok) {
-        router.refresh();
-      } else {
-        const data = (await res.json()) as { error?: string };
-        setError(data.error || 'Snel inloggen mislukt.');
+        reloadPortalRoot();
+        return;
       }
-    } finally {
+      const data = (await res.json()) as { error?: string };
+      setError(data.error || 'Snel inloggen mislukt.');
+      setLoading(false);
+    } catch {
+      setError('Snel inloggen mislukt. Controleer uw verbinding.');
       setLoading(false);
     }
   }

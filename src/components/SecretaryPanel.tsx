@@ -441,6 +441,7 @@ export default function SecretaryPanel({
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) {
         setErrorMsg(data.error || 'Aanmaken van loge mislukt.');
+        setSavingForm(false);
         return;
       }
       setNlNumber('');
@@ -448,10 +449,10 @@ export default function SecretaryPanel({
       setNlCity('');
       setNlAddress('');
       setNlLogo('');
-      setFeedback('De nieuwe loge is aangesloten! U bent automatisch overgeschakeld.');
-      setSubTab('attendance');
-      router.refresh();
-    } finally {
+      window.location.reload();
+      return;
+    } catch {
+      setErrorMsg('Aanmaken van loge mislukt.');
       setSavingForm(false);
     }
   }

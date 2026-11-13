@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { getCurrentUser, switchActiveLodge } from '@/lib/auth';
 import { canManageLodge, getDb, validateImageDataUrl } from '@/lib/db';
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
       'UPDATE lodges SET logo_url = ?, accent_color = ? WHERE id = ?'
     ).run(nextLogoUrl, nextColor, targetLodgeId);
 
+    revalidatePath('/', 'layout');
     return NextResponse.json({ ok: true, lodgeId: targetLodgeId });
   }
 
@@ -135,6 +137,7 @@ export async function POST(request: Request) {
   ).run(user.id, lodgeId, new Date().getFullYear());
 
   await switchActiveLodge(lodgeId);
+  revalidatePath('/', 'layout');
 
   return NextResponse.json({ ok: true, lodgeId });
 }

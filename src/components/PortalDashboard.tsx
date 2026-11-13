@@ -73,6 +73,7 @@ export default function PortalDashboard({
   const router = useRouter();
   const [tab, setTab] = useState<MainTab>('start');
   const [switchingLodge, setSwitchingLodge] = useState(false);
+  const [selectedLodgeId, setSelectedLodgeId] = useState(activeLodge.id);
 
   // Zoekfilters
   const [memberQuery, setMemberQuery] = useState('');
@@ -150,6 +151,7 @@ export default function PortalDashboard({
 
   async function handleSwitchLodge(nextLodgeId: string) {
     if (nextLodgeId === activeLodge.id) return;
+    setSelectedLodgeId(nextLodgeId);
     setSwitchingLodge(true);
     try {
       const res = await fetch('/api/auth/switch-lodge', {
@@ -158,17 +160,20 @@ export default function PortalDashboard({
         body: JSON.stringify({ lodgeId: nextLodgeId }),
       });
       if (res.ok) {
-        setTab('start');
-        router.refresh();
+        window.location.reload();
+        return;
       }
-    } finally {
+      setSelectedLodgeId(activeLodge.id);
+      setSwitchingLodge(false);
+    } catch {
+      setSelectedLodgeId(activeLodge.id);
       setSwitchingLodge(false);
     }
   }
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
-    router.refresh();
+    window.location.reload();
   }
 
   async function handleSelectProfilePhoto(
@@ -304,7 +309,7 @@ export default function PortalDashboard({
                     <select
                       id="lodge-switcher"
                       disabled={switchingLodge}
-                      value={activeLodge.id}
+                      value={selectedLodgeId}
                       onChange={(e) => void handleSwitchLodge(e.target.value)}
                       className="bg-white text-slate-900 font-bold text-sm rounded-lg px-2.5 py-1 cursor-pointer"
                     >
@@ -845,6 +850,7 @@ export default function PortalDashboard({
         {/* 6. SECRETARIAAT & BEHEER */}
         {tab === 'secretariaat' && canManage && (
           <SecretaryPanel
+            key={activeLodge.id}
             lodge={activeLodge}
             events={ownEvents}
             members={members}

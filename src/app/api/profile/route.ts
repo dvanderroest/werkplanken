@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getDb, validateImageDataUrl } from '@/lib/db';
@@ -37,5 +38,6 @@ export async function POST(request: Request) {
     user.id
   );
 
+  revalidatePath('/', 'layout');
   return NextResponse.json({ ok: true });
 }

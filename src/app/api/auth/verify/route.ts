@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { verifyCodeAndLogin, verifyMagicTokenAndLogin } from '@/lib/auth';
 
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
       if (!result.ok) {
         return NextResponse.json({ error: result.error }, { status: 400 });
       }
+      revalidatePath('/', 'layout');
       return NextResponse.json({ ok: true });
     }
 
@@ -30,6 +32,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
+    revalidatePath('/', 'layout');
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('Auth verify error:', err);

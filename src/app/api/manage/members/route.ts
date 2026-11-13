@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { canManageLodge, getDb, newId } from '@/lib/db';
@@ -70,6 +71,7 @@ export async function POST(request: Request) {
        WHERE user_id = ? AND lodge_id = ?`
     ).run(role, officerTitle, sortOrder, body.userId, lodgeId);
 
+    revalidatePath('/', 'layout');
     return NextResponse.json({ ok: true });
   }
 
@@ -129,5 +131,6 @@ export async function POST(request: Request) {
      VALUES (?, ?, ?, ?, ?, ?)`
   ).run(targetUserId, lodgeId, role, officerTitle, sortOrder, joinedYear);
 
+  revalidatePath('/', 'layout');
   return NextResponse.json({ ok: true, userId: targetUserId });
 }

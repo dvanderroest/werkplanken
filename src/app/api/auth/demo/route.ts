@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { createSessionForUser } from '@/lib/auth';
 import { getDb } from '@/lib/db';
@@ -29,5 +30,6 @@ export async function POST(request: Request) {
   }
 
   await createSessionForUser(user.id, user.primary_lodge_id, true);
+  revalidatePath('/', 'layout');
   return NextResponse.json({ ok: true });
 }

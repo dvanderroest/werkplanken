@@ -47,9 +47,12 @@ export default function AccessibilityBar({
     }
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {
-        // Service worker registratie is optioneel tijdens ontwikkeling
-      });
+      navigator.serviceWorker
+        .register('/sw.js', { updateViaCache: 'none' })
+        .then((reg) => reg.update())
+        .catch(() => {
+          // Service worker registratie is optioneel tijdens ontwikkeling
+        });
     }
 
     const onBeforeInstall = (e: Event) => {
