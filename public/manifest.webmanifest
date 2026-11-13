@@ -1,0 +1,18 @@
+{
+  "name": "Mijn Werkplank — Vrijmetselaars App",
+  "short_name": "Werkplank",
+  "description": "Eenvoudige, open-source app voor vrijmetselaarsloges: werkplanken, aanmelden, broedermaal, ledenlijst en visiteren.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF8F5",
+  "theme_color": "#1B365D",
+  "lang": "nl-NL",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
