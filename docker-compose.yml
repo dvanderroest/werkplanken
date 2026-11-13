@@ -1,23 +1,12 @@
 services:
   werkplanken:
     build: .
-    container_name: mijn-werkplank
+    container_name: mijn-werkplank-php
     restart: unless-stopped
     ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - ENABLE_DEV_MAILBOX=false
-      - HTTPS=true
-      - PUBLIC_APP_URL=${PUBLIC_APP_URL:-http://localhost:3000}
-      - SMTP_HOST=${SMTP_HOST:-}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_SECURE=${SMTP_SECURE:-false}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASS=${SMTP_PASS:-}
-      - SMTP_FROM=${SMTP_FROM:-"Mijn Werkplank <noreply@uwloge.nl>"}
+      - "3000:80"
     volumes:
-      - werkplank_data:/app/data
+      - werkplank_data:/var/www/html/data
 
 volumes:
   werkplank_data:

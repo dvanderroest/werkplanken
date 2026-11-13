@@ -1,0 +1,19 @@
+# Mijn Werkplank — Apache configuratie voor standaard PHP-webhosting
+Options -Indexes
+
+# Blokkeer directe toegang tot gevoelige mappen en bestanden
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Blokkeer interne mappen en database-/configuratiebestanden
+    RewriteRule ^(app|data|cli|\.git)(/|$) - [F,L]
+    RewriteRule \.(sqlite|sqlite-wal|sqlite-shm|sqlite-journal|env|md|ps1|bat)$ - [F,L]
+    RewriteRule ^config\.local\.php$ - [F,L]
+
+    # Bestaande statische bestanden (plaatjes, CSS, JS, iconen) direct serveren
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Overige nette URL's (zoals /inloggen/bevestig en /rsvp) doorsturen naar index.php
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>

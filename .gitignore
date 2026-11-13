@@ -1,20 +1,16 @@
-# Dependencies
-/node_modules
-
-# Next.js build
-/.next/
-/out/
-
-# Local database & environment secrets
+# Lokale SQLite-database, WAL-bestanden & backups (bevatten persoonsgegevens / sessies)
 /data/*.sqlite
 /data/*.sqlite-*
-.env
-.env.local
-.env.*.local
+/data/backups/
 
-# Debug & OS files
-npm-debug.log*
+# Lokale productie-configuratie met wachtwoorden / SMTP
+/config.local.php
+.env
+.env.*
+
+# Besturingssysteem & editor-bestanden
 .DS_Store
 Thumbs.db
-*.tsbuildinfo
-next-env.d.ts
+*.log
+.idea/
+.vscode/

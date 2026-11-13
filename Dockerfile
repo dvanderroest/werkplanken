@@ -1,31 +1,15 @@
-FROM node:24-bookworm-slim AS base
-WORKDIR /app
+FROM php:8.3-apache
 
-FROM base AS deps
-COPY package.json package-lock.json* ./
-RUN npm ci
+# Schakel Apache mod_rewrite in (voor /inloggen/bevestig en /rsvp) en installeer optioneel MySQL/MariaDB PDO
+RUN a2enmod rewrite \
+    && docker-php-ext-install pdo_mysql
 
-FROM base AS builder
-ENV DOCKER_BUILD=1
-ENV NEXT_TELEMETRY_DISABLED=1
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN npm run build
+WORKDIR /var/www/html
 
-FROM base AS runner
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
-ENV DATABASE_PATH=/app/data/werkplanken.sqlite
-ENV ENABLE_DEV_MAILBOX=false
+COPY . /var/www/html/
 
-RUN mkdir -p /app/data && chown -R node:node /app
-USER node
+RUN mkdir -p /var/www/html/data \
+    && chown -R www-data:www-data /var/www/html/data \
+    && chmod 775 /var/www/html/data
 
-COPY --from=builder --chown=node:node /app/public ./public
-COPY --from=builder --chown=node:node /app/.next/standalone ./
-COPY --from=builder --chown=node:node /app/.next/static ./.next/static
-
-EXPOSE 3000
-CMD ["node", "server.js"]
+EXPOSE 80
